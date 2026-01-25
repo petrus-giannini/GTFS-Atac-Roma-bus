@@ -1,0 +1,305 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    height: 100vh;
+    overflow: hidden;
+}
+
+#map {
+    height: 100vh;
+    width: 100%;
+}
+
+/* Controlli */
+.controls {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+    max-width: 350px;
+    transition: all 0.3s ease;
+}
+
+.controls.collapsed {
+    max-width: 50px;
+}
+
+.controls-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+}
+
+.controls.collapsed .controls-header {
+    border-bottom: none;
+    padding: 15px;
+}
+
+.toggle-btn {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 5px;
+    margin: 0;
+    width: auto;
+}
+
+.controls-content {
+    padding: 20px;
+    max-height: 75vh;
+    overflow-y: auto;
+}
+
+.controls.collapsed .controls-content {
+    display: none;
+}
+
+h1 {
+    font-size: 20px;
+    color: #e2001a;
+    margin: 0;
+}
+
+.controls.collapsed h1 {
+    display: none;
+}
+
+/* Status */
+.status {
+    padding: 12px;
+    background: #f0f0f0;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    font-size: 13px;
+}
+
+.status.loading {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+}
+
+.status.success {
+    background: #d4edda;
+    border-left: 4px solid #28a745;
+}
+
+.status.error {
+    background: #f8d7da;
+    border-left: 4px solid #dc3545;
+}
+
+/* Ricerca */
+.filter-section {
+    margin-bottom: 15px;
+    position: relative;
+}
+
+.filter-section label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.search-wrapper {
+    display: flex;
+    gap: 8px;
+    position: relative;
+}
+
+.filter-section input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.search-btn {
+    padding: 10px 16px;
+    background: #e2001a;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    width: auto;
+    margin: 0;
+}
+
+.search-btn:hover {
+    background: #c00016;
+}
+
+/* Autocomplete */
+.autocomplete-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 48px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    margin-top: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1001;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    display: none;
+}
+
+.autocomplete-item {
+    padding: 10px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.autocomplete-item:hover {
+    background: #f8f8f8;
+}
+
+.autocomplete-item:last-child {
+    border-bottom: none;
+}
+
+/* Bottoni */
+button {
+    width: 100%;
+    padding: 12px;
+    background: #e2001a;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+button:hover {
+    background: #c00016;
+}
+
+button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+/* Statistiche */
+.stats {
+    font-size: 12px;
+    color: #666;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #ddd;
+}
+
+/* Legenda */
+.legend {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    z-index: 1000;
+    font-size: 13px;
+    transition: all 0.3s ease;
+}
+
+.legend.collapsed {
+    padding: 10px;
+}
+
+.legend-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    margin-bottom: 10px;
+}
+
+.legend.collapsed .legend-header {
+    margin-bottom: 0;
+}
+
+.legend.collapsed .legend-content {
+    display: none;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+    justify-content: space-between;
+}
+
+.legend-item-left {
+    display: flex;
+    align-items: center;
+}
+
+.legend-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    margin-right: 10px;
+    border: 2px solid white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.legend-line {
+    width: 30px;
+    height: 3px;
+    margin-right: 10px;
+}
+
+/* Bottoni popup */
+.route-btn {
+    display: inline-block;
+    padding: 6px 12px;
+    margin: 4px;
+    background: #e2001a;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.route-btn:hover {
+    background: #c00016;
+}
+
+/* Leaflet overrides */
+.leaflet-control-attribution {
+    background: rgba(255,255,255,0.7) !important;
+    margin: 0 !important;
+    padding: 0 5px !important;
+    font-size: 11px !important;
+    position: absolute !important;
+    bottom: 0 !important;
+    right: 0 !important;
+}
+
+.leaflet-bottom.leaflet-right {
+    bottom: 0 !important;
+}
+
+.leaflet-container {
+    font-family: inherit;
+}

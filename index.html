@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bus ATAC Roma - Tempo Reale</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="map"></div>
+    
+    <div class="controls">
+        <div class="controls-header" onclick="toggleControls()">
+            <h1>🚌 Bus ATAC Roma</h1>
+            <button class="toggle-btn" id="controlsToggle">▼</button>
+        </div>
+        <div class="controls-content">
+            <div id="statusGTFS" class="status loading">Caricamento...</div>
+            <div id="statusRT" class="status loading">In attesa...</div>
+            <div class="filter-section">
+                <label for="routeFilter">Cerca Linea:</label>
+                <div class="search-wrapper">
+                    <input type="text" id="routeFilter" placeholder="Digita numero linea..." autocomplete="off" />
+                    <button class="search-btn" id="searchBtn">🔍</button>
+                </div>
+                <div id="autocompleteList" class="autocomplete-list"></div>
+            </div>
+            <button id="showViewportStops">📍 Fermate in Vista</button>
+            <button id="refreshBtn">🔄 Aggiorna Posizioni</button>
+            <div class="stats" id="stats">Caricamento...</div>
+        </div>
+    </div>
+    
+    <div class="legend collapsed">
+        <div class="legend-header" onclick="toggleLegend()">
+            <div style="font-weight:600;">Legenda</div>
+            <button class="toggle-btn" id="legendToggle">▶</button>
+        </div>
+        <div class="legend-content">
+            <div class="legend-item">
+                <div class="legend-item-left">
+                    <div class="legend-color" style="background:#e2001a;"></div>
+                    <span>Bus</span>
+                </div>
+                <input type="checkbox" id="showBuses">
+            </div>
+            <div class="legend-item">
+                <div class="legend-item-left">
+                    <div style="width:16px;height:20px;margin-right:10px;background:#FFD700;border:2px solid #333;border-radius:3px 3px 0 0;"></div>
+                    <span>Fermate</span>
+                </div>
+                <input type="checkbox" id="showStops">
+            </div>
+            <div class="legend-item">
+                <div class="legend-item-left">
+                    <div class="legend-line" style="background:#666;"></div>
+                    <span>Tracciati</span>
+                </div>
+                <input type="checkbox" id="showRoutes">
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/protobufjs/7.2.5/protobuf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
