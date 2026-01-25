@@ -303,3 +303,12 @@ button:disabled {
 .leaflet-container {
     font-family: inherit;
 }
+
+.leaflet-control-location {
+    background-color: white !important;
+    cursor: pointer;
+}
+
+.leaflet-control-location:hover {
+    background-color: #f4f4f4 !important;
+}

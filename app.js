@@ -3,8 +3,9 @@ let map, busMarkers = [], stopMarkers = [], routePolylines = [];
 let allVehicles = [], availableRoutes = [], tripUpdates = {};
 let gtfsData = { stops: {}, routes: {}, trips: {}, shapes: {}, routeStops: {} };
 let userLocation = null, viewportMode = false;
+let locationMarker = null;
 
-// URL dei feed ATAC
+// URL del proxy (sostituisci con il tuo URL di Render)
 const PROXY_URL = 'https://gtfs-atac-proxy.onrender.com';
 const VEH_URL = `${PROXY_URL}/api/vehicle-positions`;
 const TRP_URL = `${PROXY_URL}/api/trip-updates`;
@@ -117,6 +118,9 @@ function initMap() {
         if (viewportMode) updateMap();
     });
 
+    // Pulsante localizzazione
+    addLocationButton();
+
     loadGTFS();
 }
 
@@ -134,6 +138,75 @@ function toggleLegend() {
     leg.classList.toggle('collapsed');
     document.getElementById('legendToggle').textContent = 
         leg.classList.contains('collapsed') ? '▶' : '▼';
+}
+
+// Pulsante localizzazione
+function addLocationButton() {
+    const LocationControl = L.Control.extend({
+        options: { position: 'topleft' },
+        onAdd: function() {
+            const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+            const button = L.DomUtil.create('a', 'leaflet-control-location', container);
+            button.innerHTML = '📍';
+            button.href = '#';
+            button.title = 'La mia posizione';
+            button.style.fontSize = '20px';
+            button.style.width = '30px';
+            button.style.height = '30px';
+            button.style.lineHeight = '30px';
+            button.style.textAlign = 'center';
+            button.style.textDecoration = 'none';
+            button.style.backgroundColor = 'white';
+            
+            L.DomEvent.on(button, 'click', function(e) {
+                L.DomEvent.preventDefault(e);
+                centerOnUserLocation();
+            });
+            
+            return container;
+        }
+    });
+    
+    map.addControl(new LocationControl());
+}
+
+// Centra mappa sulla posizione utente
+function centerOnUserLocation() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            position => {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+                userLocation = [lat, lon];
+                
+                map.setView(userLocation, 16);
+                
+                // Rimuovi marker precedente
+                if (locationMarker) {
+                    map.removeLayer(locationMarker);
+                }
+                
+                // Aggiungi marker posizione
+                const icon = L.divIcon({
+                    className: '',
+                    html: `<div style="width:20px;height:20px;background:#4A90E2;border:3px solid white;
+                           border-radius:50%;box-shadow:0 0 0 3px rgba(74,144,226,0.3);"></div>`,
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
+                });
+                
+                locationMarker = L.marker(userLocation, { icon })
+                    .addTo(map)
+                    .bindPopup('📍 La tua posizione');
+            },
+            error => {
+                alert('Impossibile ottenere la posizione: ' + error.message);
+            },
+            { enableHighAccuracy: true }
+        );
+    } else {
+        alert('Geolocalizzazione non supportata dal browser');
+    }
 }
 
 // Autocomplete
@@ -171,6 +244,8 @@ function selectRoute(route) {
 function performSearch() {
     viewportMode = false;
     document.getElementById('showBuses').checked = true;
+    document.getElementById('showStops').checked = true;
+    document.getElementById('showRoutes').checked = true;
     updateMap();
 }
 
@@ -321,6 +396,7 @@ async function loadTripUpdates() {
                             tripUpdates[stu.stopId] = [];
                         }
                         tripUpdates[stu.stopId].push({
+                            tripId: entity.tripUpdate.trip?.tripId,
                             routeId: entity.tripUpdate.trip?.routeId,
                             arrivalTime: stu.arrival?.time ? 
                                 new Date(parseInt(stu.arrival.time) * 1000) : null
@@ -385,12 +461,13 @@ async function loadVehiclePositions() {
 
 // Genera popup fermata
 function getStopPopup(stop) {
-    let html = `<div style="min-width:280px;">
+    let html = `<div style="min-width:300px;">
         <strong>${stop.name}</strong><br>
         <span style="font-size:12px;color:#666;">Fermata: ${stop.code}</span>`;
 
     const updates = tripUpdates[stop.id] || [];
     const routeArrivals = {};
+    const routeDestinations = {};
 
     updates.forEach(update => {
         if (update.arrivalTime && update.routeId) {
@@ -403,18 +480,34 @@ function getStopPopup(stop) {
                     routeArrivals[routeName] = minutesUntil;
                 }
             }
+            
+            // Trova destinazione da trip
+            if (update.tripId) {
+                const trip = gtfsData.trips[update.tripId];
+                if (trip && trip.headsign && !routeDestinations[routeName]) {
+                    routeDestinations[routeName] = trip.headsign;
+                }
+            }
         }
     });
 
     if (Object.keys(routeArrivals).length) {
         html += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid #ddd;">';
-        html += '<strong>Arrivi:</strong><div style="margin-top:8px;">';
+        html += '<strong>Prossimi arrivi:</strong><div style="margin-top:8px;">';
         
         Object.entries(routeArrivals)
             .sort((a, b) => a[1] - b[1])
             .forEach(([routeName, minutes]) => {
-                html += `<button class="route-btn" onclick="searchFromPopup('${routeName}')">${routeName}</button> `;
-                html += `<span>${minutes ? minutes + ' min' : 'ora'}</span><br>`;
+                const destination = routeDestinations[routeName] || '';
+                html += `
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                        <button class="route-btn" onclick="searchFromPopup('${routeName}')" 
+                                style="padding:4px 8px;font-size:14px;margin:0;width:auto;min-width:50px;">${routeName}</button>
+                        <span style="font-size:13px;font-weight:bold;color:#e2001a;">${minutes ? minutes + ' min' : 'ora'}</span>
+                    </div>`;
+                if (destination) {
+                    html += `<div style="font-size:11px;color:#666;margin-left:4px;margin-bottom:8px;">➜ ${destination}</div>`;
+                }
             });
         
         html += '</div></div>';
@@ -452,7 +545,7 @@ function updateMap() {
             if (shape && shape.length) {
                 const polyline = L.polyline(
                     shape.map(p => [p.lat, p.lon]),
-                    { color: '#666', weight: 3, opacity: 0.6 }
+                    { color: '#FF0000', weight: 4, opacity: 0.7 }
                 ).addTo(map);
                 routePolylines.push(polyline);
             }
