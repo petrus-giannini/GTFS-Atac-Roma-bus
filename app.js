@@ -5,8 +5,9 @@ let gtfsData = { stops: {}, routes: {}, trips: {}, shapes: {}, routeStops: {} };
 let userLocation = null, viewportMode = false;
 
 // URL dei feed ATAC
-const VEH_URL = 'https://dati.comune.roma.it/catalog/dataset/a7dadb4a-66ae-4eff-8ded-a102064702ba/resource/d2b123d6-8d2d-4dee-9792-f535df3dc166/download/rome_vehicle_positions.pb';
-const TRP_URL = 'https://dati.comune.roma.it/catalog/dataset/a7dadb4a-66ae-4eff-8ded-a102064702ba/resource/bf7577b5-ed26-4f50-a590-38b8ed4d2827/download/rome_trip_updates.pb';
+const PROXY_URL = 'https://gtfs-atac-proxy.onrender.com';
+const VEH_URL = `${PROXY_URL}/api/vehicle-positions`;
+const TRP_URL = `${PROXY_URL}/api/trip-updates`;
 
 // Schema Protocol Buffer per GTFS-RT
 const GTFS_RT_PROTO = `
