@@ -465,6 +465,19 @@ function getStopPopup(stop) {
         <strong>${stop.name}</strong><br>
         <span style="font-size:12px;color:#666;">Fermata: ${stop.code}</span>`;
 
+    // Trova tutte le linee che passano per questa fermata (da route_stops.json)
+    const routesAtStop = new Set();
+    for (const [routeName, stopIds] of Object.entries(gtfsData.routeStops)) {
+        if (stopIds.has(stop.id)) {
+            routesAtStop.add(routeName);
+        }
+    }
+
+    if (routesAtStop.size === 0) {
+        return html + '</div>';
+    }
+
+    // Ottieni gli orari di arrivo dai trip updates
     const updates = tripUpdates[stop.id] || [];
     const routeArrivals = {};
     const routeDestinations = {};
@@ -491,27 +504,39 @@ function getStopPopup(stop) {
         }
     });
 
-    if (Object.keys(routeArrivals).length) {
-        html += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid #ddd;">';
-        html += '<strong>Prossimi arrivi:</strong><div style="margin-top:8px;">';
+    // Mostra tutte le linee che passano dalla fermata
+    html += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid #ddd;">';
+    html += '<strong>Linee:</strong><div style="margin-top:8px;">';
+    
+    const sortedRoutes = Array.from(routesAtStop).sort((a, b) => {
+        // Ordina: prima quelle con orario, poi le altre
+        const aHasTime = routeArrivals[a] !== undefined;
+        const bHasTime = routeArrivals[b] !== undefined;
+        if (aHasTime && !bHasTime) return -1;
+        if (!aHasTime && bHasTime) return 1;
+        if (aHasTime && bHasTime) return routeArrivals[a] - routeArrivals[b];
+        return a.localeCompare(b, undefined, { numeric: true });
+    });
+
+    sortedRoutes.forEach(routeName => {
+        const minutes = routeArrivals[routeName];
+        const timeLabel = minutes !== undefined ? 
+            (minutes === 0 ? 'ora' : minutes + ' min') : '';
         
-        Object.entries(routeArrivals)
-            .sort((a, b) => a[1] - b[1])
-            .forEach(([routeName, minutes]) => {
-                const destination = routeDestinations[routeName] || '';
-                html += `
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                        <button class="route-btn" onclick="searchFromPopup('${routeName}')" 
-                                style="padding:4px 8px;font-size:14px;margin:0;width:auto;min-width:50px;">${routeName}</button>
-                        <span style="font-size:13px;font-weight:bold;color:#e2001a;">${minutes ? minutes + ' min' : 'ora'}</span>
-                    </div>`;
-                if (destination) {
-                    html += `<div style="font-size:11px;color:#666;margin-left:4px;margin-bottom:8px;">➜ ${destination}</div>`;
-                }
-            });
+        const destination = routeDestinations[routeName] || '';
         
-        html += '</div></div>';
-    }
+        html += `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <button class="route-btn" onclick="searchFromPopup('${routeName}')" 
+                        style="padding:4px 8px;font-size:14px;margin:0;width:auto;min-width:50px;">${routeName}</button>
+                <span style="font-size:13px;font-weight:bold;color:#e2001a;">${timeLabel}</span>
+            </div>`;
+        if (destination) {
+            html += `<div style="font-size:11px;color:#666;margin-left:4px;margin-bottom:8px;">➜ ${destination}</div>`;
+        }
+    });
+    
+    html += '</div></div>';
 
     return html + '</div>';
 }
