@@ -1,7 +1,7 @@
 // Variabili globali
 let map, busMarkers = [], stopMarkers = [], routePolylines = [];
 let allVehicles = [], availableRoutes = [], tripUpdates = {};
-let gtfsData = { stops: {}, routes: {}, trips: {}, shapes: {}, routeStops: {} };
+let gtfsData = { stops: {}, routes: {}, trips: {}, shapes: {}, routeStops: {}, routeDestinations: {} };
 let userLocation = null, viewportMode = false;
 let locationMarker = null;
 
@@ -334,6 +334,14 @@ async function loadGTFS() {
                     headsign: trip.trip_headsign,
                     shapeId: trip.shape_id
                 };
+                
+                // Pre-calcola destinazioni per route (ottimizzazione)
+                const route = gtfsData.routes[trip.route_id];
+                if (route && route.shortName && trip.trip_headsign) {
+                    if (!gtfsData.routeDestinations[route.shortName]) {
+                        gtfsData.routeDestinations[route.shortName] = trip.trip_headsign;
+                    }
+                }
             }
         });
 
@@ -465,7 +473,7 @@ function getStopPopup(stop) {
         <strong>${stop.name}</strong><br>
         <span style="font-size:12px;color:#666;">Fermata: ${stop.code}</span>`;
 
-    // Trova tutte le linee che passano per questa fermata (da route_stops.json)
+    // Trova tutte le linee che passano per questa fermata
     const routesAtStop = new Set();
     for (const [routeName, stopIds] of Object.entries(gtfsData.routeStops)) {
         if (stopIds.has(stop.id)) {
@@ -482,7 +490,7 @@ function getStopPopup(stop) {
     const routeArrivals = {};
     const routeDestinations = {};
 
-    // Prima: cerca destinazioni e orari dai trip updates
+    // Cerca orari e destinazioni dai trip updates
     updates.forEach(update => {
         if (update.routeId) {
             const route = gtfsData.routes[update.routeId] || {};
@@ -499,23 +507,8 @@ function getStopPopup(stop) {
             }
             
             // Destinazione dal trip
-            if (update.tripId) {
+            if (update.tripId && !routeDestinations[routeName]) {
                 const trip = gtfsData.trips[update.tripId];
-                if (trip && trip.headsign && !routeDestinations[routeName]) {
-                    routeDestinations[routeName] = trip.headsign;
-                }
-            }
-        }
-    });
-
-    // Secondo: per linee senza destinazione nei trip updates, cerca nei trips statici
-    routesAtStop.forEach(routeName => {
-        if (!routeDestinations[routeName]) {
-            // Trova il route_id corrispondente al routeName
-            const routeEntry = Object.values(gtfsData.routes).find(r => r.shortName === routeName);
-            if (routeEntry) {
-                // Cerca un trip di questa route
-                const trip = Object.values(gtfsData.trips).find(t => t.routeId === routeEntry.id);
                 if (trip && trip.headsign) {
                     routeDestinations[routeName] = trip.headsign;
                 }
@@ -523,12 +516,18 @@ function getStopPopup(stop) {
         }
     });
 
-    // Mostra tutte le linee che passano dalla fermata
+    // Aggiungi destinazioni pre-calcolate per linee senza trip updates
+    routesAtStop.forEach(routeName => {
+        if (!routeDestinations[routeName] && gtfsData.routeDestinations[routeName]) {
+            routeDestinations[routeName] = gtfsData.routeDestinations[routeName];
+        }
+    });
+
+    // Mostra tutte le linee
     html += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid #ddd;">';
     html += '<strong>Linee:</strong><div style="margin-top:8px;">';
     
     const sortedRoutes = Array.from(routesAtStop).sort((a, b) => {
-        // Ordina: prima quelle con orario, poi le altre
         const aHasTime = routeArrivals[a] !== undefined;
         const bHasTime = routeArrivals[b] !== undefined;
         if (aHasTime && !bHasTime) return -1;
@@ -556,7 +555,6 @@ function getStopPopup(stop) {
     });
     
     html += '</div></div>';
-
     return html + '</div>';
 }
 
