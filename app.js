@@ -6,7 +6,7 @@ let userLocation = null, viewportMode = false;
 let locationMarker = null;
 
 // URL del proxy (sostituisci con il tuo URL di Render)
-const PROXY_URL = 'https://gtfs-atac-proxy.onrender.com';
+const PROXY_URL = 'https://your-proxy-name.onrender.com';
 const VEH_URL = `${PROXY_URL}/api/vehicle-positions`;
 const TRP_URL = `${PROXY_URL}/api/trip-updates`;
 
@@ -482,22 +482,41 @@ function getStopPopup(stop) {
     const routeArrivals = {};
     const routeDestinations = {};
 
+    // Prima: cerca destinazioni e orari dai trip updates
     updates.forEach(update => {
-        if (update.arrivalTime && update.routeId) {
+        if (update.routeId) {
             const route = gtfsData.routes[update.routeId] || {};
             const routeName = route.shortName || update.routeId;
-            const minutesUntil = Math.round((update.arrivalTime - new Date()) / 60000);
             
-            if (minutesUntil >= 0 && minutesUntil < 60) {
-                if (!routeArrivals[routeName] || routeArrivals[routeName] > minutesUntil) {
-                    routeArrivals[routeName] = minutesUntil;
+            // Orario di arrivo
+            if (update.arrivalTime) {
+                const minutesUntil = Math.round((update.arrivalTime - new Date()) / 60000);
+                if (minutesUntil >= 0 && minutesUntil < 60) {
+                    if (!routeArrivals[routeName] || routeArrivals[routeName] > minutesUntil) {
+                        routeArrivals[routeName] = minutesUntil;
+                    }
                 }
             }
             
-            // Trova destinazione da trip
+            // Destinazione dal trip
             if (update.tripId) {
                 const trip = gtfsData.trips[update.tripId];
                 if (trip && trip.headsign && !routeDestinations[routeName]) {
+                    routeDestinations[routeName] = trip.headsign;
+                }
+            }
+        }
+    });
+
+    // Secondo: per linee senza destinazione nei trip updates, cerca nei trips statici
+    routesAtStop.forEach(routeName => {
+        if (!routeDestinations[routeName]) {
+            // Trova il route_id corrispondente al routeName
+            const routeEntry = Object.values(gtfsData.routes).find(r => r.shortName === routeName);
+            if (routeEntry) {
+                // Cerca un trip di questa route
+                const trip = Object.values(gtfsData.trips).find(t => t.routeId === routeEntry.id);
+                if (trip && trip.headsign) {
                     routeDestinations[routeName] = trip.headsign;
                 }
             }
@@ -526,7 +545,7 @@ function getStopPopup(stop) {
         const destination = routeDestinations[routeName] || '';
         
         html += `
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
                 <button class="route-btn" onclick="searchFromPopup('${routeName}')" 
                         style="padding:4px 8px;font-size:14px;margin:0;width:auto;min-width:50px;">${routeName}</button>
                 <span style="font-size:13px;font-weight:bold;color:#e2001a;">${timeLabel}</span>
@@ -556,25 +575,35 @@ function updateMap() {
     const showStops = document.getElementById('showStops').checked;
     const showRoutes = document.getElementById('showRoutes').checked;
 
-    // Filtra veicoli
-    let filteredVehicles = routeFilter ? 
-        allVehicles.filter(v => v.routeName.toUpperCase() === routeFilter) : 
-        allVehicles;
+    // Filtra veicoli - confronta con routeName non routeId
+    let filteredVehicles = allVehicles;
+    if (routeFilter) {
+        filteredVehicles = allVehicles.filter(v => v.routeName.toUpperCase() === routeFilter);
+        console.log(`Filtro linea "${routeFilter}": trovati ${filteredVehicles.length} bus`);
+    }
 
     // Mostra tracciati
-    if (showRoutes && filteredVehicles.length) {
-        const uniqueShapes = [...new Set(filteredVehicles.map(v => v.shapeId).filter(Boolean))];
-        
-        uniqueShapes.forEach(shapeId => {
-            const shape = gtfsData.shapes[shapeId];
-            if (shape && shape.length) {
-                const polyline = L.polyline(
-                    shape.map(p => [p.lat, p.lon]),
-                    { color: '#FF0000', weight: 4, opacity: 0.7 }
-                ).addTo(map);
-                routePolylines.push(polyline);
-            }
-        });
+    if (showRoutes) {
+        if (filteredVehicles.length > 0) {
+            // Mostra tracciati delle linee filtrate
+            const uniqueShapes = [...new Set(filteredVehicles.map(v => v.shapeId).filter(Boolean))];
+            console.log(`Tracciati da mostrare: ${uniqueShapes.length}`, uniqueShapes);
+            
+            uniqueShapes.forEach(shapeId => {
+                const shape = gtfsData.shapes[shapeId];
+                if (shape && shape.length) {
+                    const polyline = L.polyline(
+                        shape.map(p => [p.lat, p.lon]),
+                        { color: '#FF0000', weight: 4, opacity: 0.7 }
+                    ).addTo(map);
+                    routePolylines.push(polyline);
+                }
+            });
+        } else if (!routeFilter) {
+            // Se non c'è filtro e nessun bus, mostra tutti i tracciati disponibili
+            // (opzionale, commentato per performance)
+            // Object.values(gtfsData.shapes).forEach(shape => {...});
+        }
     }
 
     // Mostra fermate
@@ -591,6 +620,7 @@ function updateMap() {
             stopsToShow = Object.values(gtfsData.stops).filter(stop => 
                 routeStopIds.has(stop.id)
             );
+            console.log(`Fermate linea "${routeFilter}": ${stopsToShow.length}`);
         } else if (!routeFilter) {
             stopsToShow = Object.values(gtfsData.stops);
         }
@@ -657,7 +687,8 @@ function updateMap() {
     // Aggiorna statistiche
     document.getElementById('stats').innerHTML = 
         `Bus: <strong>${showBuses ? filteredVehicles.length : 0}</strong> | ` +
-        `Fermate: <strong>${stopMarkers.length}</strong>`;
+        `Fermate: <strong>${stopMarkers.length}</strong> | ` +
+        `Tracciati: <strong>${routePolylines.length}</strong>`;
 }
 
 // Auto-refresh ogni 30 secondi
