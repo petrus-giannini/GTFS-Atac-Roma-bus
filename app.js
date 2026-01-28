@@ -6,7 +6,7 @@ let userLocation = null, viewportMode = false;
 let locationMarker = null;
 
 // URL del proxy (sostituisci con il tuo URL di Render)
-const PROXY_URL = 'https://your-proxy-name.onrender.com';
+const PROXY_URL = 'https://gtfs-atac-proxy.onrender.com';
 const VEH_URL = `${PROXY_URL}/api/vehicle-positions`;
 const TRP_URL = `${PROXY_URL}/api/trip-updates`;
 
