@@ -1,7 +1,7 @@
 // Variabili globali
 let map, busMarkers = [], stopMarkers = [], routePolylines = [];
 let allVehicles = [], availableRoutes = [], tripUpdates = {};
-let gtfsData = { stops: {}, routes: {}, trips: {}, shapes: {}, routeStops: {}, routeDestinations: {} };
+let gtfsData = { stops: {}, routes: {}, trips: {}, shapes: {}, routeStops: {}, routeDestinations: {}, routeShapes: {} };
 let userLocation = null, viewportMode = false;
 let locationMarker = null;
 
@@ -335,11 +335,21 @@ async function loadGTFS() {
                     shapeId: trip.shape_id
                 };
                 
-                // Pre-calcola destinazioni per route (ottimizzazione)
                 const route = gtfsData.routes[trip.route_id];
-                if (route && route.shortName && trip.trip_headsign) {
-                    if (!gtfsData.routeDestinations[route.shortName]) {
+                if (route && route.shortName) {
+                    // Pre-calcola destinazioni
+                    if (trip.trip_headsign && !gtfsData.routeDestinations[route.shortName]) {
                         gtfsData.routeDestinations[route.shortName] = trip.trip_headsign;
+                    }
+                    
+                    // Pre-calcola shape_id per ogni linea
+                    if (trip.shape_id) {
+                        if (!gtfsData.routeShapes[route.shortName]) {
+                            gtfsData.routeShapes[route.shortName] = [];
+                        }
+                        if (!gtfsData.routeShapes[route.shortName].includes(trip.shape_id)) {
+                            gtfsData.routeShapes[route.shortName].push(trip.shape_id);
+                        }
                     }
                 }
             }
@@ -582,26 +592,31 @@ function updateMap() {
 
     // Mostra tracciati
     if (showRoutes) {
-        if (filteredVehicles.length > 0) {
-            // Mostra tracciati delle linee filtrate
-            const uniqueShapes = [...new Set(filteredVehicles.map(v => v.shapeId).filter(Boolean))];
-            console.log(`Tracciati da mostrare: ${uniqueShapes.length}`, uniqueShapes);
-            
-            uniqueShapes.forEach(shapeId => {
-                const shape = gtfsData.shapes[shapeId];
-                if (shape && shape.length) {
-                    const polyline = L.polyline(
-                        shape.map(p => [p.lat, p.lon]),
-                        { color: '#FF0000', weight: 4, opacity: 0.7 }
-                    ).addTo(map);
-                    routePolylines.push(polyline);
-                }
-            });
-        } else if (!routeFilter) {
-            // Se non c'è filtro e nessun bus, mostra tutti i tracciati disponibili
-            // (opzionale, commentato per performance)
-            // Object.values(gtfsData.shapes).forEach(shape => {...});
+        let shapesToShow = [];
+        
+        if (routeFilter) {
+            // Se c'è un filtro, usa i shape pre-calcolati dalla linea
+            if (gtfsData.routeShapes[routeFilter]) {
+                shapesToShow = gtfsData.routeShapes[routeFilter];
+                console.log(`Tracciati linea "${routeFilter}": ${shapesToShow.length} shape_id`, shapesToShow);
+            } else {
+                console.log(`Nessun tracciato trovato per linea "${routeFilter}"`);
+            }
+        } else if (filteredVehicles.length > 0) {
+            // Se non c'è filtro ma ci sono bus, usa i loro shape
+            shapesToShow = [...new Set(filteredVehicles.map(v => v.shapeId).filter(Boolean))];
         }
+        
+        shapesToShow.forEach(shapeId => {
+            const shape = gtfsData.shapes[shapeId];
+            if (shape && shape.length) {
+                const polyline = L.polyline(
+                    shape.map(p => [p.lat, p.lon]),
+                    { color: '#FF0000', weight: 4, opacity: 0.7 }
+                ).addTo(map);
+                routePolylines.push(polyline);
+            }
+        });
     }
 
     // Mostra fermate
