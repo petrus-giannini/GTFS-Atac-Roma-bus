@@ -6,7 +6,7 @@ let userLocation = null, viewportMode = false;
 let locationMarker = null;
 
 // URL del proxy (sostituisci con il tuo URL di Render)
-const PROXY_URL = 'https://gtfs-atac-proxy.onrender.com';
+const PROXY_URL = 'https://your-proxy-name.onrender.com';
 const VEH_URL = `${PROXY_URL}/api/vehicle-positions`;
 const TRP_URL = `${PROXY_URL}/api/trip-updates`;
 
@@ -450,14 +450,19 @@ async function loadVehiclePositions() {
         allVehicles = object.entity
             .filter(e => e.vehicle && e.vehicle.position)
             .map(e => {
-                const trip = gtfsData.trips[e.vehicle.trip?.tripId] || {};
+                const tripId = e.vehicle.trip?.tripId;
+                const trip = gtfsData.trips[tripId] || {};
                 const route = gtfsData.routes[e.vehicle.trip?.routeId] || {};
+                
+                // Usa SEMPRE l'headsign dal trip del feed real-time, non quello pre-calcolato
+                const headsign = trip.headsign || 'Destinazione non disponibile';
                 
                 return {
                     id: e.id,
                     routeId: e.vehicle.trip?.routeId || 'N/D',
                     routeName: route.shortName || 'N/D',
-                    headsign: trip.headsign || 'Destinazione N/D',
+                    tripId: tripId,
+                    headsign: headsign,
                     lat: e.vehicle.position.latitude,
                     lon: e.vehicle.position.longitude,
                     timestamp: e.vehicle.timestamp || object.header.timestamp,
